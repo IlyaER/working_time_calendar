@@ -5,6 +5,7 @@ import io
 
 from reportlab.lib.colors import green
 from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
 
 from reportlab.lib.units import inch, cm, mm
@@ -20,27 +21,49 @@ from reportlab.platypus import Paragraph
 class Calendar:
     def __init__(self, year):
         self.year = year
-        self.top_margin = 1
-        self.bottom_margin = 1
-        self.left_margin = 0.5
-        self.right_margin = 0.5
-
-
+        self.top_margin = 1*cm
+        self.bottom_margin = 1*cm
+        self.left_margin = 0.5*cm
+        self.right_margin = 0.5*cm
+        self.page_size = A4
+        self.width, self.height = self.page_size
+        self.font_size = 14
 
     def render(self):
+        c = calendar.LocaleTextCalendar(locale='Russian_Russia')
+        print(c.formatmonth(2023, 1, l=1))
+
         output = self.year
-        pdf = canvas.Canvas('myfile.pdf', pagesize=A4, bottomup=False)
-        width, height = A4
+        pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
+        # width, height = A4
 
         # width_mm = int(width/72*25.4)
         # print(width_mm)
-        print(width / mm, height / mm)
+        print(self.width / mm, self.height / mm)
         pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
-        pdf.setFont('DejaVuSans', 14)
+        pdf.setFont('DejaVuSans', self.font_size)
         # horizontal, vertical, text
-        pdf.drawCentredString(width / 2, 1*cm, f"Производственный календарь на {self.year} год")
+        pdf.drawCentredString(self.width / 2, 1*cm, f"Производственный календарь на {self.year} год")
         pdf.setFillColor(green)
+
         pdf.drawString(0.5*cm, 1 * cm, "Календарь")
+        # pdf.drawRightString
+
+        # not sure if that calculation is necessary
+        face = pdfmetrics.getFont('DejaVuSans').face
+        string_height = (face.ascent - face.descent) / 1000 * self.font_size
+        print(string_height)
+        # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
+        cell_size = (self.width - self.left_margin - self.right_margin) / 31
+        month_width = (self.width - self.left_margin - self.right_margin) / 31 * 7
+
+        month_height = cell_size * 9 #(self.height - self.top_margin - self.bottom_margin)
+        print(month_width / mm)
+        print(month_height / mm)
+        y = self.top_margin + 16 * 2
+        for i in range(12):
+            print(f"Месяц {i}, отступ вниз {i % 3}, отступ вбок {i // 3}")
+            pdf.drawString(self.left_margin + month_width * (i // 4), y + month_height * (i % 3), "Месяц")
 
         # pdf.drawString(10, 20, "Календарь")  # , direction='RTL')
         # # one symbol's width is 9, space's is 4
@@ -81,6 +104,6 @@ class Calendar:
 if __name__ == '__main__':
 
     c = Calendar(2023)
-    print(c.render())
+    c.render()
 
 
