@@ -32,28 +32,40 @@ class Calendar:
         self.pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
 
         self.cell_size = (self.width - self.left_margin - self.right_margin) / 31
-        self.month_width = (self.width - self.left_margin - self.right_margin) / 31 * 7
+        self.month_width = self.cell_size * 7 #  (self.width - self.left_margin - self.right_margin) / 31 * 7
         self.month_height = self.cell_size * 9  # (self.height - self.top_margin - self.bottom_margin)
 
+        self.line_spacing = self.font_size * 1.2
 
     def render_week(self):
         pass
 
     def render_month(self, x: int, y: int, month: int) -> None:
+        print(x / mm, y / mm)
+        print(self.cell_size / mm)
         self.pdf.drawString(x, y, calendar.month_name[month])
-
+        y += self.line_spacing
+        for j in range(0, 7):
+            self.pdf.drawString(x + self.cell_size * j, y, calendar.day_abbr[j])
 
     def render_year(self):
-        self.pdf.drawCentredString(self.width / 2, 1 * cm, f"Производственный календарь на {self.year} год")
-
+        y = self.top_margin
+        self.pdf.drawCentredString(self.width / 2, y, f"Производственный календарь на {self.year} год")
+        y += self.line_spacing * 2
+        self.font_size = self.font_size - 2
+        self.pdf.setFont('DejaVuSans', self.font_size)
         # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
 
         print(self.month_width / mm)
         print(self.month_height / mm)
-        y = self.top_margin + 16 * 2
+        #y = self.top_margin + 16 * 2
         for i in range(12):
             # print(f"Месяц {i}, отступ вниз {i % 3}, отступ вбок {i // 3}")
-            self.render_month(self.left_margin + self.month_width * (i // 3), y + self.month_height * (i % 3), i + 1)
+            self.render_month(
+                self.left_margin + (self.month_width + self.cell_size) * (i // 3),
+                y + self.month_height * (i % 3),
+                i + 1
+            )
             #self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
 
 
@@ -72,7 +84,9 @@ class Calendar:
         # print(width_mm)
         print(self.width / mm, self.height / mm)
         pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
-        self.pdf.setFont('DejaVuSans', self.font_size)
+        pdfmetrics.registerFont(TTFont('Calibri', 'calibri.ttf'))
+        #self.pdf.setFont('DejaVuSans', self.font_size)
+        self.pdf.setFont('Calibri', self.font_size)
         # horizontal, vertical, text
         self.render_year()
 
