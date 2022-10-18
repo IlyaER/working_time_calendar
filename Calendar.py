@@ -37,16 +37,27 @@ class Calendar:
 
         self.line_spacing = self.font_size * 1.2
 
-    def render_week(self):
+        self.c = calendar.LocaleTextCalendar(locale=self.locale)
+
+    def render_day(self):
         pass
+
+    def render_week(self, x: int, y: int, month: int):
+        for i in range(0, 7):
+            self.pdf.drawString(x + self.cell_size * i, y, calendar.day_abbr[i])
+        y += self.cell_size
+        for year, month, day, week_day in self.c.itermonthdays4(self.year, month):
+            self.pdf.drawString(x + self.cell_size * week_day, y, str(day))
+
+
 
     def render_month(self, x: int, y: int, month: int) -> None:
         print(x / mm, y / mm)
         print(self.cell_size / mm)
         self.pdf.drawString(x, y, calendar.month_name[month])
-        y += self.line_spacing
-        for j in range(0, 7):
-            self.pdf.drawString(x + self.cell_size * j, y, calendar.day_abbr[j])
+        y += self.cell_size
+
+        self.render_week(x, y, month)
 
     def render_year(self):
         y = self.top_margin
@@ -73,8 +84,8 @@ class Calendar:
 
         locale.setlocale(locale.LC_ALL, self.locale)
 
-        c = calendar.LocaleTextCalendar(locale=self.locale)
-        print(c.formatmonth(2023, 1))
+
+        print(self.c.formatmonth(2023, 1))
 
         output = self.year
         # pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
@@ -138,7 +149,7 @@ class Calendar:
 
 if __name__ == '__main__':
 
-    c = Calendar(2023)
-    c.render()
+    cal = Calendar(2023)
+    cal.render()
 
 
