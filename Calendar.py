@@ -27,6 +27,7 @@ class Calendar:
         self.right_margin = 0.5*cm
         self.page_size = A4
         self.width, self.height = self.page_size
+        self.font = 'CalibriB'
         self.font_size = 14
         self.locale = 'Russian_Russia'
         self.pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
@@ -48,6 +49,8 @@ class Calendar:
         y += self.cell_size
         for year, month, day, week_day in self.c.itermonthdays4(self.year, month):
             self.pdf.drawString(x + self.cell_size * week_day, y, str(day))
+            if week_day == 6:
+                y += self.cell_size
 
 
 
@@ -64,7 +67,7 @@ class Calendar:
         self.pdf.drawCentredString(self.width / 2, y, f"Производственный календарь на {self.year} год")
         y += self.line_spacing * 2
         self.font_size = self.font_size - 2
-        self.pdf.setFont('DejaVuSans', self.font_size)
+        self.pdf.setFont(self.font, self.font_size)
         # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
 
         print(self.month_width / mm)
@@ -94,10 +97,14 @@ class Calendar:
         # width_mm = int(width/72*25.4)
         # print(width_mm)
         print(self.width / mm, self.height / mm)
-        pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
-        pdfmetrics.registerFont(TTFont('Calibri', 'calibri.ttf'))
+        fonts = ("DejaVuSans", "Calibri", "CalibriB", "CalibriI", "CalibriL", "CalibriLI", "CalibriZ")
+        for font in fonts:
+            pdfmetrics.registerFont(TTFont(font, font+".ttf"))
+        #pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+        #pdfmetrics.registerFont(TTFont('Calibri', 'calibri.ttf'))
+
         #self.pdf.setFont('DejaVuSans', self.font_size)
-        self.pdf.setFont('Calibri', self.font_size)
+        self.pdf.setFont(self.font, self.font_size)
         # horizontal, vertical, text
         self.render_year()
 
@@ -107,7 +114,7 @@ class Calendar:
         # pdf.drawRightString
 
         # not sure if that calculation is necessary
-        face = pdfmetrics.getFont('DejaVuSans').face
+        face = pdfmetrics.getFont('CalibriB').face
         string_height = (face.ascent - face.descent) / 1000 * self.font_size
         print(string_height)
 
