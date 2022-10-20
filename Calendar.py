@@ -3,7 +3,7 @@ import locale
 
 import io
 
-from reportlab.lib.colors import green
+from reportlab.lib.colors import green, grey, black, red
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
@@ -40,15 +40,33 @@ class Calendar:
 
         self.c = calendar.LocaleTextCalendar(locale=self.locale)
 
-    def render_day(self):
+    def holiday(self):
         pass
+
+    def render_day(self, x: int, y: int, day: tuple, month: int):
+        # (2023, 12, 30, 4)
+
+        year_day, month_day, day, week_day = day
+        if month_day != month:
+            self.pdf.setFillColor(grey)
+        #if holiday
+        else:
+            self.pdf.setFillColor(black)
+        self.pdf.drawRightString(x, y, str(day))
+        self.pdf.setFillColor(black)
+        #if self
 
     def render_week(self, x: int, y: int, month: int):
         for i in range(0, 7):
-            self.pdf.drawString(x + self.cell_size * i, y, calendar.day_abbr[i])
+            if i > 5:
+                self.pdf.setFillColor(red)
+            else:
+                self.pdf.setFillColor(black)
+            self.pdf.drawCentredString(x + self.cell_size * i + self.cell_size / 2, y, calendar.day_abbr[i])
         y += self.cell_size
-        for year, month, day, week_day in self.c.itermonthdays4(self.year, month):
-            self.pdf.drawString(x + self.cell_size * week_day, y, str(day))
+        for day in self.c.itermonthdays4(self.year, month):
+            week_day = day[3]
+            self.render_day(x + self.cell_size * (week_day + 1) - self.cell_size * 0.15, y, day, month)
             if week_day == 6:
                 y += self.cell_size
 
@@ -68,8 +86,8 @@ class Calendar:
         y += self.line_spacing * 2
         self.font_size = self.font_size - 2
         self.pdf.setFont(self.font, self.font_size)
-        # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
 
+        # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
         print(self.month_width / mm)
         print(self.month_height / mm)
         #y = self.top_margin + 16 * 2
@@ -100,8 +118,6 @@ class Calendar:
         fonts = ("DejaVuSans", "Calibri", "CalibriB", "CalibriI", "CalibriL", "CalibriLI", "CalibriZ")
         for font in fonts:
             pdfmetrics.registerFont(TTFont(font, font+".ttf"))
-        #pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
-        #pdfmetrics.registerFont(TTFont('Calibri', 'calibri.ttf'))
 
         #self.pdf.setFont('DejaVuSans', self.font_size)
         self.pdf.setFont(self.font, self.font_size)
