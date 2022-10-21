@@ -3,7 +3,7 @@ import locale
 
 import io
 
-from reportlab.lib.colors import green, grey, black, red
+from reportlab.lib.colors import green, grey, black, red, Color, coral, crimson, darkred, HexColor
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
@@ -40,25 +40,36 @@ class Calendar:
 
         self.c = calendar.LocaleTextCalendar(locale=self.locale)
 
-    def holiday(self):
-        pass
+        self.holidays = [(1, 1), (1, 2), (1, 3), (1, 4),
+                         (1, 5), (1, 6), (1, 7), (1, 8),
+                         (2, 23), (3, 8), (5, 1), (5, 9),
+                         (6, 12), (11, 4)]
+
+        self.holiday_transfer = [(2023, )]
+
+    def is_holiday(self, day) -> Color:
+        year_day, month_day, day, week_day = day
+        if (month_day, day) in self.holidays:
+            return HexColor(0x8B0000)
+        return black
 
     def render_day(self, x: int, y: int, day: tuple, month: int):
         # (2023, 12, 30, 4)
 
-        year_day, month_day, day, week_day = day
-        if month_day != month:
+        #year_day, month_day, day, week_day = day
+        color = self.is_holiday(day)
+        self.pdf.setFillColor(color)
+
+        if day[1] != month:
             self.pdf.setFillColor(grey)
-        #if holiday
-        else:
-            self.pdf.setFillColor(black)
-        self.pdf.drawRightString(x, y, str(day))
+
+        self.pdf.drawRightString(x, y, str(day[2]))
         self.pdf.setFillColor(black)
         #if self
 
     def render_week(self, x: int, y: int, month: int):
         for i in range(0, 7):
-            if i > 5:
+            if i > 4:
                 self.pdf.setFillColor(red)
             else:
                 self.pdf.setFillColor(black)
