@@ -1,19 +1,15 @@
 import calendar
-import locale
-
 import io
+import locale
+import datetime
 
-from reportlab.lib.colors import green, grey, black, red, Color, coral, crimson, darkred, HexColor
+from reportlab.lib.colors import (Color, HexColor, black, coral, crimson,
+                                  darkred, green, grey, red)
+from reportlab.lib.pagesizes import A4, letter
+from reportlab.lib.units import cm, inch, mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
-
-from reportlab.lib.units import inch, cm, mm
-from reportlab.lib.pagesizes import letter, A4
-
-#locale.setlocale(category=locale.LC_ALL, locale="Russian_Russia.1251")
-#myCanvas = canvas.Canvas('myfile.pdf', pagesize=A4, bottomup=True)
-#width, height = A4
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 
@@ -21,10 +17,10 @@ from reportlab.platypus import Paragraph
 class Calendar:
     def __init__(self, year):
         self.year = year
-        self.top_margin = 1*cm
-        self.bottom_margin = 1*cm
-        self.left_margin = 0.5*cm
-        self.right_margin = 0.5*cm
+        self.top_margin = 1 * cm
+        self.bottom_margin = 1 * cm
+        self.left_margin = 0.5 * cm
+        self.right_margin = 0.5 * cm
         self.page_size = A4
         self.width, self.height = self.page_size
         self.font = 'CalibriB'
@@ -33,7 +29,7 @@ class Calendar:
         self.pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
 
         self.cell_size = (self.width - self.left_margin - self.right_margin) / 31
-        self.month_width = self.cell_size * 7 #  (self.width - self.left_margin - self.right_margin) / 31 * 7
+        self.month_width = self.cell_size * 7  # (self.width - self.left_margin - self.right_margin) / 31 * 7
         self.month_height = self.cell_size * 9  # (self.height - self.top_margin - self.bottom_margin)
 
         self.line_spacing = self.font_size * 1.2
@@ -49,7 +45,9 @@ class Calendar:
 
         self.weekends = set()
 
-        self.holiday_transfer = [(2023, )]
+        self.shortened_work_day = set()
+
+        self.holiday_transfer = [(2023,)]
 
     def is_holiday(self, day) -> Color:
         """
@@ -60,23 +58,18 @@ class Calendar:
         :return:
         """
         year_day, month_day, day, week_day = day
-        if (month_day, day) in [(holiday[0], holiday[1]) for holiday in self.holidays if holiday[2]]:
-            if week_day > 4:
-                target_day = day + 1
-                while (month_day, target_day) in self.weekends:
-                    target_day += 1
-                self.weekends.add((month_day, target_day))
-                print(sorted(list(self.weekends)))
+        if (month_day, day) in [(holiday[0], holiday[1]) for holiday in self.holidays]:
             return HexColor(0x990000)
         if (month_day, day) in self.weekends:
             return red
+        if (month_day, day) in self.shortened_work_day:
+            return green
         return black
 
     def render_day(self, x: int, y: int, day: tuple, month: int):
         # (2023, 12, 30, 4)
 
-        #year_day, month_day, day, week_day = day
-
+        # year_day, month_day, day, week_day = day
 
         if day[1] != month:
             self.pdf.setFillColor(grey)
@@ -100,8 +93,6 @@ class Calendar:
             if week_day == 6:
                 y += self.cell_size
 
-
-
     def render_month(self, x: int, y: int, month: int) -> None:
         print(f"Month start points: {x / mm, y / mm}")
         print(self.cell_size / mm, month)
@@ -120,7 +111,7 @@ class Calendar:
         # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
         print(f"Month width: {self.month_width / mm}")
         print(f"Month height: {self.month_height / mm}")
-        #y = self.top_margin + 16 * 2
+        # y = self.top_margin + 16 * 2
         for i in range(12):
             month = i + 1
             # print(f"Месяц {i}, отступ вниз {i % 3}, отступ вбок {i // 3}")
@@ -128,21 +119,38 @@ class Calendar:
             # populate weekends
             [self.weekends.add((day[1], day[2])) for day in self.c.itermonthdays4(self.year, month) if day[3] in (5, 6)]
 
+            # populate weekend transfers and shortened work days
+            # warning!: shortened days are calculated only for transferable holidays.
+            for date in self.c.itermonthdates(self.year, month):
+                print(date, date.weekday())
+                if (date.month, date.day) in [(holiday[0], holiday[1]) for holiday in self.holidays if holiday[2]]:
+                    if (date.month, date.day) in self.weekends:
+                        print(f"A transferable date {date} has collapsed with weekend, "
+                              f"trying to move to the next working day")
+                        target_day = date.day + 1
+                        while (date.month, target_day) in self.weekends:
+                            target_day += 1
+                        self.weekends.add((date.month, target_day))
+                        print(f"A suitable date has been found: {month}, {target_day}")
+                    #print(sorted(list(self.weekends)))
+                    prev_date = date - datetime.timedelta(days=1)
+                    if (month, prev_date) not in self.weekends:
+                        print(f"Found a shortened work day: {month}, {prev_date}")
+                        self.shortened_work_day.add((prev_date.month, prev_date.day))
+
+
             self.render_month(
                 self.left_margin + (self.month_width + self.cell_size) * (i // 3),
                 y + self.month_height * (i % 3),
                 month
             )
-            #self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
-
+            # self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
 
     def render(self):
 
         locale.setlocale(locale.LC_ALL, self.locale)
 
-
-
-        #print(self.c.formatmonth(2023, 1))
+        # print(self.c.formatmonth(2023, 1))
 
         output = self.year
         # pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
@@ -153,22 +161,22 @@ class Calendar:
         print(f"Page size: {self.width / mm, self.height / mm}")
         fonts = ("DejaVuSans", "Calibri", "CalibriB", "CalibriI", "CalibriL", "CalibriLI", "CalibriZ")
         for font in fonts:
-            pdfmetrics.registerFont(TTFont(font, font+".ttf"))
+            pdfmetrics.registerFont(TTFont(font, font + ".ttf"))
 
-        #self.pdf.setFont('DejaVuSans', self.font_size)
+        # self.pdf.setFont('DejaVuSans', self.font_size)
         self.pdf.setFont(self.font, self.font_size)
         # horizontal, vertical, text
         self.render_year()
 
         self.pdf.setFillColor(green)
 
-        self.pdf.drawString(0.5*cm, 1 * cm, "Календарь")
+        self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
         # pdf.drawRightString
 
         # not sure if that calculation is necessary
-        #face = pdfmetrics.getFont('CalibriB').face
-        #string_height = (face.ascent - face.descent) / 1000 * self.font_size
-        #print(string_height)
+        # face = pdfmetrics.getFont('CalibriB').face
+        # string_height = (face.ascent - face.descent) / 1000 * self.font_size
+        # print(string_height)
 
         # pdf.drawString(10, 20, "Календарь")  # , direction='RTL')
         # # one symbol's width is 9, space's is 4
@@ -181,9 +189,8 @@ class Calendar:
         # pdf.drawString(19, 72, "1")  # start from right on next line
         # pdf.drawString(580, 20, "Календарь")
 
-
-        #pdf.drawString(70, 770, "Календарь.")
-        #for i, ingredient in enumerate(ingredients, 1):
+        # pdf.drawString(70, 770, "Календарь.")
+        # for i, ingredient in enumerate(ingredients, 1):
         #    pdf.drawString(
         #        70,
         #        770 - i * 20,
@@ -195,11 +202,11 @@ class Calendar:
         self.pdf.showPage()
         self.pdf.save()
 
-        #return output
-        #c = calendar.LocaleTextCalendar(locale='Russian_Russia')
-        #print(c.formatmonth(2023, 1, l=1))
-        #print(c.formatmonth(2023, 2))
-        #for day in c.itermonthdates(2023, 1):
+        # return output
+        # c = calendar.LocaleTextCalendar(locale='Russian_Russia')
+        # print(c.formatmonth(2023, 1, l=1))
+        # print(c.formatmonth(2023, 2))
+        # for day in c.itermonthdates(2023, 1):
         #    if day.month == 1:
         #        print(day)
         #    else:
@@ -207,8 +214,5 @@ class Calendar:
 
 
 if __name__ == '__main__':
-
     cal = Calendar(2023)
     cal.render()
-
-
