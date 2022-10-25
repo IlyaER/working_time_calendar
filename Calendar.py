@@ -4,7 +4,7 @@ import locale
 import datetime
 
 from reportlab.lib.colors import (Color, HexColor, black, coral, crimson,
-                                  darkred, green, grey, red)
+                                  darkred, green, grey, red, lightgrey)
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm, inch, mm
 from reportlab.pdfbase import pdfmetrics
@@ -12,6 +12,12 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
+
+
+class Cell:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
 
 
 class Calendar:
@@ -28,9 +34,12 @@ class Calendar:
         self.locale = 'Russian_Russia'
         self.pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
 
-        self.cell_size = (self.width - self.left_margin - self.right_margin) / 31
-        self.month_width = self.cell_size * 7  # (self.width - self.left_margin - self.right_margin) / 31 * 7
-        self.month_height = self.cell_size * 9  # (self.height - self.top_margin - self.bottom_margin)
+        self.cell_size = Cell(
+            (self.width - self.left_margin - self.right_margin) / 31,
+            (self.width - self.left_margin - self.right_margin) / 31 * 0.9
+        )
+        self.month_width = self.cell_size.width * 7  # (self.width - self.left_margin - self.right_margin) / 31 * 7
+        self.month_height = self.cell_size.height * 9  # (self.height - self.top_margin - self.bottom_margin)
 
         self.line_spacing = self.font_size * 1.2
 
@@ -38,27 +47,32 @@ class Calendar:
 
         # month, day, is_transferrable (defines if holiday is transferred when concurs with weekend),
         # name
-        self.holidays = [(1, 1, 0, "Новогодние каникулы"), (1, 2, 0), (1, 3, 0), (1, 4, 0),
-                         (1, 5, 0), (1, 6, 0), (1, 7, 0), (1, 8, 0),
-                         (2, 23, 1), (3, 8, 1), (5, 1, 1), (5, 9, 1),
-                         (6, 12, 1), (11, 4, 1)]
+        self.holidays = [["1-1", 0, "Новогодние каникулы"], ["1-2", 0, "Новогодние каникулы"],
+                         ["1-3", 0, "Новогодние каникулы"], ["1-4", 0, "Новогодние каникулы"],
+                         ["1-5", 0, "Новогодние каникулы"], ["1-6", 0, "Новогодние каникулы"],
+                         ["1-7", 0, "Рождество Христово"], ["1-8", 0, "Новогодние каникулы"],
+                         ["2-23", 1, "День защитника Отечества"], ["3-8", 1, "Международный женский день"],
+                         ["5-1", 1, "Праздник Весны и Труда"], ["5-9", 1, "День Победы"],
+                         ["6-12", 1, "День России"], ["11-4", 1, "День народного единства"]]
 
         self.weekends = set()
 
         self.shortened_work_day = set()
 
-        self.holiday_transfer = [(2023,)]
+        self.holiday_transfer = [["2023-1-1", "2023-2-24"], ["2023-1-8", "2023-5-8"]]
 
     def is_special_day(self, day) -> Color:
         """
-        Checks if a day is in holiday list and returns corresponding color for the day type.
+        Checks if a day is in holiday, weekend or shortened work day lists and returns
+        corresponding color for the day type.
         Returns black color if not.
-        If it is a transferable holiday and concurs with a weekend, it marks next day as weekend.
+
         :param day:
         :return:
         """
         #year_day, month_day, day, week_day = day
-        if (day.month, day.day) in [(holiday[0], holiday[1]) for holiday in self.holidays]:
+        #if (day.month, day.day) in [(holiday[0], holiday[1]) for holiday in self.holidays]:
+        if day in [holiday[0] for holiday in self.holidays]:
             return HexColor(0x990000)
         if day in self.weekends:
             return red
@@ -72,7 +86,7 @@ class Calendar:
         # year_day, month_day, day, week_day = day
 
         if day.month != month:
-            self.pdf.setFillColor(grey)
+            self.pdf.setFillColor(lightgrey)
         else:
             color = self.is_special_day(day)
             self.pdf.setFillColor(color)
@@ -85,19 +99,20 @@ class Calendar:
                 self.pdf.setFillColor(red)
             else:
                 self.pdf.setFillColor(black)
-            self.pdf.drawCentredString(x + self.cell_size * i + self.cell_size / 2, y, calendar.day_abbr[i])
-        y += self.cell_size
+            #self.pdf.drawCentredString(x + self.cell_size * i + self.cell_size / 2, y, calendar.day_abbr[i])
+            self.pdf.drawCentredString(x + self.cell_size.width * (i + 0.5), y, calendar.day_abbr[i])
+        y += self.cell_size.height
         for day in self.c.itermonthdates(self.year, month):
             week_day = day.weekday()
-            self.render_day(x + self.cell_size * (week_day + 1) - self.cell_size * 0.15, y, day, month)
+            self.render_day(x + self.cell_size.width * (week_day + 1) - self.cell_size.width * 0.15, y, day, month)
             if week_day == 6:
-                y += self.cell_size
+                y += self.cell_size.height
 
     def render_month(self, x: int, y: int, month: int) -> None:
         print(f"Month start points: {x / mm, y / mm}")
-        print(self.cell_size / mm, month)
+        print(self.cell_size.width / mm, month)
         self.pdf.drawCentredString(x + self.month_width / 2, y, calendar.month_name[month])
-        y += self.cell_size
+        y += self.cell_size.height
 
         self.render_week(x, y, month)
 
@@ -118,18 +133,18 @@ class Calendar:
             month = i + 1
             # print(f"Месяц {i}, отступ вниз {i % 3}, отступ вбок {i // 3}")
 
-
-
-
             self.render_month(
-                self.left_margin + (self.month_width + self.cell_size) * (i // 3),
+                self.left_margin + (self.month_width + self.cell_size.width) * (i // 3),
                 y + self.month_height * (i % 3),
                 month
             )
             # self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
 
     def render(self):
-
+        """
+        Prepares fonts, styles etc. required for rendering final image.
+        :return:
+        """
         locale.setlocale(locale.LC_ALL, self.locale)
 
         # print(self.c.formatmonth(2023, 1))
@@ -148,40 +163,12 @@ class Calendar:
         # self.pdf.setFont('DejaVuSans', self.font_size)
         self.pdf.setFont(self.font, self.font_size)
 
-        start_date = datetime.date(self.year, 1, 1)
-        end_date = datetime.date(self.year + 1, 1, 1)
-        #print(end_date)
-        #print([start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days)])
-        for date in [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days)]:
-            # populate weekends
-            if date.weekday() in (5, 6):
-                self.weekends.add(date)
-
-            # populate weekend transfers and shortened work days
-            # warning!: shortened days are calculated only for transferable holidays.
-            # print(date, date.weekday())
-            if (date.month, date.day) in [(holiday[0], holiday[1]) for holiday in self.holidays if holiday[2]]:
-                if date in self.weekends:
-                    print(f"A transferable date {date} has collapsed with weekend, "
-                          f"trying to move to the next working day")
-                    target_day = date + datetime.timedelta(days=1)
-                    while target_day in self.weekends:
-                        target_day += datetime.timedelta(days=1)
-                    self.weekends.add(target_day)
-                    print(f"A suitable date has been found: {target_day}")
-                # print(sorted(list(self.weekends)))
-                prev_date = date - datetime.timedelta(days=1)
-                if prev_date not in self.weekends:
-                    print(f"Found a shortened work day: {prev_date}")
-                    self.shortened_work_day.add(prev_date)
-        print(self.weekends)
-
         # horizontal, vertical, text
         self.render_year()
 
-        self.pdf.setFillColor(green)
+        # self.pdf.setFillColor(green)
+        # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
 
-        self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
         # pdf.drawRightString
 
         # not sure if that calculation is necessary
@@ -200,30 +187,63 @@ class Calendar:
         # pdf.drawString(19, 72, "1")  # start from right on next line
         # pdf.drawString(580, 20, "Календарь")
 
-        # pdf.drawString(70, 770, "Календарь.")
-        # for i, ingredient in enumerate(ingredients, 1):
-        #    pdf.drawString(
-        #        70,
-        #        770 - i * 20,
-        #        f"{i} "
-        #        f"{ingredient['name']} "
-        #        f"({ingredient['measurement_unit']}): "
-        #        f"{ingredient['amount']}"
-        #    )
         self.pdf.showPage()
         self.pdf.save()
 
-        # return output
-        # c = calendar.LocaleTextCalendar(locale='Russian_Russia')
-        # print(c.formatmonth(2023, 1, l=1))
-        # print(c.formatmonth(2023, 2))
-        # for day in c.itermonthdates(2023, 1):
-        #    if day.month == 1:
-        #        print(day)
-        #    else:
-        #        print(str(day) + 'r')
+
+    def setup(self):
+        """
+        Initializes all the holidays and other special days according to lists (or input).
+        If it is a transferable holiday and concurs with a weekend, it marks next day as weekend.
+        :return:
+        """
+        # A workaround. Here we try to convert holidays format to a datetime object.
+        for date in self.holidays:
+            date[0] = datetime.datetime.strptime(str(self.year)+date[0], "%Y%m-%d").date()
+
+        for date in self.holiday_transfer:
+            date[0], date[1] = (
+                datetime.datetime.strptime(date[0], "%Y-%m-%d").date(),
+                datetime.datetime.strptime(date[1], "%Y-%m-%d").date()
+            )
+        #print(self.holiday_transfer)
+
+        # iterate over all days in a year
+        start_date = datetime.date(self.year, 1, 1)
+        end_date = datetime.date(self.year + 1, 1, 1)
+        #print(end_date)
+        for date in [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days)]:
+            # populate weekends
+            if date.weekday() in (5, 6):
+                self.weekends.add(date)
+
+            # Populate weekend transfers and shortened work days
+            # warning!: shortened days are calculated only for transferable holidays.
+            # print(date, date.weekday())
+            if date in [holiday[0] for holiday in self.holidays if holiday[1]]:
+                if date in self.weekends:
+                    print(f"A transferable date {date} has collapsed with weekend, "
+                          f"trying to move to the next working day")
+                    transfer_day = date + datetime.timedelta(days=1)
+                    # We cannot increment holiday transfer day by checking it in weekend list
+                    # as this list is populating in the same loop.
+                    while transfer_day.weekday() in (5, 6):
+                        transfer_day += datetime.timedelta(days=1)
+                    self.weekends.add(transfer_day)
+                    print(f"A suitable date has been found: {transfer_day}")
+                prev_date = date - datetime.timedelta(days=1)
+                if prev_date not in self.weekends:
+                    print(f"Found a shortened work day: {prev_date}")
+                    self.shortened_work_day.add(prev_date)
+
+        # exchange holidays according to holiday transfer list
+        for date in self.holiday_transfer:
+            self.weekends.discard(date[0])
+            self.weekends.add(date[1])
+        print(sorted(list(self.weekends)))
+        self.render()
 
 
 if __name__ == '__main__':
     cal = Calendar(2023)
-    cal.render()
+    cal.setup()
