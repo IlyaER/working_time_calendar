@@ -20,6 +20,19 @@ class Cell:
         self.height = height
 
 
+class Holiday:
+    def __init__(self, date, is_transferable, name):
+        self.date = date
+        self.is_transferable = is_transferable
+        self.name = name
+
+    def __repr__(self):
+        return (f"{self.__class__.__qualname__}"
+                f"({self.date}, "
+                f"{self.is_transferable}, "
+                f"{self.name})")
+
+
 class Calendar:
     def __init__(self, year):
         self.year = year
@@ -59,7 +72,7 @@ class Calendar:
 
         self.shortened_work_day = set()
 
-        self.holiday_transfer = [["2023-1-1", "2023-2-24"], ["2023-1-8", "2023-5-8"]]
+        self.weekend_transfer = [["2023-1-1", "2023-2-24"], ["2023-1-8", "2023-5-8"]]
 
     def is_special_day(self, day) -> Color:
         """
@@ -72,7 +85,7 @@ class Calendar:
         """
         #year_day, month_day, day, week_day = day
         #if (day.month, day.day) in [(holiday[0], holiday[1]) for holiday in self.holidays]:
-        if day in [holiday[0] for holiday in self.holidays]:
+        if day in [holiday.date for holiday in self.holidays]:
             return HexColor(0x990000)
         if day in self.weekends:
             return red
@@ -139,6 +152,7 @@ class Calendar:
                 month
             )
             # self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
+        return y + self.month_height * 3
 
     def render(self):
         """
@@ -164,7 +178,18 @@ class Calendar:
         self.pdf.setFont(self.font, self.font_size)
 
         # horizontal, vertical, text
-        self.render_year()
+        y = self.render_year()
+
+        cnt = set()
+        for holiday in self.holidays:
+            cnt.add(holiday.name)
+        cnt = len(cnt)
+        print(f"count: {cnt}")
+
+
+
+        for holiday in self.holidays:
+            self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
 
         # self.pdf.setFillColor(green)
         # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
@@ -201,12 +226,18 @@ class Calendar:
         for date in self.holidays:
             date[0] = datetime.datetime.strptime(str(self.year)+date[0], "%Y%m-%d").date()
 
-        for date in self.holiday_transfer:
+        for date in self.weekend_transfer:
             date[0], date[1] = (
                 datetime.datetime.strptime(date[0], "%Y-%m-%d").date(),
                 datetime.datetime.strptime(date[1], "%Y-%m-%d").date()
             )
-        #print(self.holiday_transfer)
+        #print(self.weekend_transfer)
+
+        for i, date in enumerate(self.holidays):
+            self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
+
+        #["1-1", 0, "Новогодние каникулы"], ["1-2", 0, "Новогодние каникулы"]
+        print(*self.holidays)
 
         # iterate over all days in a year
         start_date = datetime.date(self.year, 1, 1)
@@ -220,7 +251,7 @@ class Calendar:
             # Populate weekend transfers and shortened work days
             # warning!: shortened days are calculated only for transferable holidays.
             # print(date, date.weekday())
-            if date in [holiday[0] for holiday in self.holidays if holiday[1]]:
+            if date in [holiday.date for holiday in self.holidays if holiday.is_transferable]:
                 if date in self.weekends:
                     print(f"A transferable date {date} has collapsed with weekend, "
                           f"trying to move to the next working day")
@@ -236,12 +267,18 @@ class Calendar:
                     print(f"Found a shortened work day: {prev_date}")
                     self.shortened_work_day.add(prev_date)
 
-        # exchange holidays according to holiday transfer list
-        for date in self.holiday_transfer:
+        # exchange holidays according to weekend transfer list
+        for date in self.weekend_transfer:
             self.weekends.discard(date[0])
             self.weekends.add(date[1])
-        print(sorted(list(self.weekends)))
+        #print(sorted(list(self.weekends)))
         self.render()
+
+def count(x):
+    cnt = set()
+
+    return len(cnt)
+
 
 
 if __name__ == '__main__':
