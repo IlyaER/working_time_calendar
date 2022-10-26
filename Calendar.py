@@ -21,7 +21,7 @@ class Cell:
 
 
 class Holiday:
-    def __init__(self, date, is_transferable, name):
+    def __init__(self, date: list, is_transferable: bool, name: str):
         self.date = date
         self.is_transferable = is_transferable
         self.name = name
@@ -85,7 +85,11 @@ class Calendar:
         """
         #year_day, month_day, day, week_day = day
         #if (day.month, day.day) in [(holiday[0], holiday[1]) for holiday in self.holidays]:
-        if day in [holiday.date for holiday in self.holidays]:
+        #print(day)
+        #print([self.holidays[0].date])
+
+        # search in list of lists
+        if day in [date for holiday in self.holidays for date in holiday.date]:
             return HexColor(0x990000)
         if day in self.weekends:
             return red
@@ -180,16 +184,20 @@ class Calendar:
         # horizontal, vertical, text
         y = self.render_year()
 
-        cnt = set()
-        for holiday in self.holidays:
-            cnt.add(holiday.name)
-        cnt = len(cnt)
-        print(f"count: {cnt}")
 
 
 
-        for holiday in self.holidays:
-            self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
+        for i, holiday in enumerate(self.holidays):
+            print(i)
+            #self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
+       #!!    self.pdf.drawString(
+       #!!        self.left_margin + self.cell_size.width * (i // 3),
+       #!!        y + self.cell_size.height * (i % 3),
+       #!!        str(holiday.date.day)
+       #!!    )
+            self.pdf.drawString(self.left_margin + 100, y, "Пт")
+            self.pdf.drawString(self.left_margin + 200, y, "Рождество Христово")
+
 
         # self.pdf.setFillColor(green)
         # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
@@ -226,6 +234,7 @@ class Calendar:
         for date in self.holidays:
             date[0] = datetime.datetime.strptime(str(self.year)+date[0], "%Y%m-%d").date()
 
+        # perform weekend transfer
         for date in self.weekend_transfer:
             date[0], date[1] = (
                 datetime.datetime.strptime(date[0], "%Y-%m-%d").date(),
@@ -233,8 +242,9 @@ class Calendar:
             )
         #print(self.weekend_transfer)
 
+        # convert holidays data to Holiday object
         for i, date in enumerate(self.holidays):
-            self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
+            self.holidays[i] = Holiday(date=[date[0]], is_transferable=date[1], name=date[2])
 
         #["1-1", 0, "Новогодние каникулы"], ["1-2", 0, "Новогодние каникулы"]
         print(*self.holidays)
@@ -251,7 +261,7 @@ class Calendar:
             # Populate weekend transfers and shortened work days
             # warning!: shortened days are calculated only for transferable holidays.
             # print(date, date.weekday())
-            if date in [holiday.date for holiday in self.holidays if holiday.is_transferable]:
+            if date in [date for holiday in self.holidays for date in holiday.date if holiday.is_transferable]:
                 if date in self.weekends:
                     print(f"A transferable date {date} has collapsed with weekend, "
                           f"trying to move to the next working day")
@@ -272,13 +282,39 @@ class Calendar:
             self.weekends.discard(date[0])
             self.weekends.add(date[1])
         #print(sorted(list(self.weekends)))
+
+
+        # cnt = set()
+        # for holiday in self.holidays:
+        #     cnt.add(holiday.name)
+        # cnt = len(cnt)
+        # print(f"Number of distinct holidays: {cnt}")
+
+        #temp_list = []
+
+        # for i, date in enumerate(self.holidays):
+        #    self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
+
+        for i, base_holiday in enumerate(self.holidays):
+            for j, probe_holiday in reversed(list(enumerate(self.holidays))):
+                # print(i, j)
+
+                if j > i and base_holiday.name == probe_holiday.name:
+                    self.holidays[i].date.append(*probe_holiday.date)
+                    del self.holidays[j]
+                    # print("present")
+            # if holiday.name in [day.name for day in temp_list]:
+            #
+            #    print("Present!")
+            # else:
+            #    temp_list.append(holiday)
+            # del self.holidays[i]
+
+            # print(f"temp: {temp_list}")
+        # print(f"holidays:{self.holidays}")
+        print([date for holiday in self.holidays for date in holiday.date])
+
         self.render()
-
-def count(x):
-    cnt = set()
-
-    return len(cnt)
-
 
 
 if __name__ == '__main__':
