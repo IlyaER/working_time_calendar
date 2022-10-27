@@ -2,6 +2,7 @@ import calendar
 import io
 import locale
 import datetime
+from itertools import count
 
 from reportlab.lib.colors import (Color, HexColor, black, coral, crimson,
                                   darkred, green, grey, red, lightgrey)
@@ -186,19 +187,61 @@ class Calendar:
 
 
 
+        print("-----Holidays-----")
+        self.font_size = self.font_size - 3
+        self.font = "Calibri"
+        self.pdf.setFont(self.font, self.font_size)
+
 
         for i, holiday in enumerate(self.holidays):
-            print(i)
+            self.pdf.setFillColor(darkred)
+            print(i, holiday)
+            print(min(holiday.date), max(holiday.date), len(holiday.date))
+            pos_x = self.left_margin + self.cell_size.width * 10 * (i // 3)
+            pos_y = y + self.cell_size.height * (i % 3)
+            print(pos_x, pos_y)
+            if len(holiday.date) > 1:
+                date = f"{min(holiday.date).day}-{max(holiday.date).day} "
+                date += min(holiday.date).strftime("%b")
+                print(date)
+                self.pdf.drawCentredString(
+                    pos_x + self.cell_size.width * 3 / 2,
+                    pos_y,
+                    str(date)
+                )
+                self.pdf.setFillColor(black)
+            else:
+                date = f"{holiday.date[0].day} {convert_month_name(holiday.date[0].strftime('%b'))}"
+                self.pdf.drawCentredString(
+                    pos_x + self.cell_size.width,
+                    pos_y,
+                    date
+                )
+                self.pdf.setFillColor(black)
+                self.pdf.drawString(
+                    pos_x + self.cell_size.width * 2,
+                    pos_y,
+                    holiday.date[0].strftime("%a")
+                )
+
+            self.pdf.drawString(
+                pos_x + self.cell_size.width * 3,
+                pos_y,
+                holiday.name
+            )
+
             #self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
-       #!!    self.pdf.drawString(
-       #!!        self.left_margin + self.cell_size.width * (i // 3),
-       #!!        y + self.cell_size.height * (i % 3),
-       #!!        str(holiday.date.day)
-       #!!    )
-            self.pdf.drawString(self.left_margin + 100, y, "Пт")
-            self.pdf.drawString(self.left_margin + 200, y, "Рождество Христово")
+            #self.pdf.drawString(
+            #    self.left_margin + self.cell_size.width * (i // 3),
+            #    y + self.cell_size.height * (i % 3),
+            #    str(holiday.date)
+            #)
+            #self.pdf.drawString(self.left_margin + 100, y, "Пт")
+            #self.pdf.drawString(self.left_margin + 200, y, "Рождество Христово")
 
+        y += self.cell_size.height * 4
 
+        self.pdf.drawString(self.left_margin, y, "Календарь")
         # self.pdf.setFillColor(green)
         # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
 
@@ -244,7 +287,38 @@ class Calendar:
 
         # convert holidays data to Holiday object
         for i, date in enumerate(self.holidays):
-            self.holidays[i] = Holiday(date=[date[0]], is_transferable=date[1], name=date[2])
+            self.holidays[i] = Holiday(date=[date[0]], is_transferable=bool(date[1]), name=date[2])
+
+        # cnt = set()
+        # for holiday in self.holidays:
+        #     cnt.add(holiday.name)
+        # cnt = len(cnt)
+        # print(f"Number of distinct holidays: {cnt}")
+
+        #temp_list = []
+
+        # for i, date in enumerate(self.holidays):
+        #    self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
+
+        for i, base_holiday in enumerate(self.holidays):
+            for j, probe_holiday in reversed(list(enumerate(self.holidays))):
+                # print(i, j)
+
+                if j > i and base_holiday.name == probe_holiday.name:
+                    self.holidays[i].date.append(*probe_holiday.date)
+                    del self.holidays[j]
+                    # print("present")
+            # if holiday.name in [day.name for day in temp_list]:
+            #
+            #    print("Present!")
+            # else:
+            #    temp_list.append(holiday)
+            # del self.holidays[i]
+
+            # print(f"temp: {temp_list}")
+        # print(f"holidays:{self.holidays}")
+        print([date for holiday in self.holidays for date in holiday.date])
+
 
         #["1-1", 0, "Новогодние каникулы"], ["1-2", 0, "Новогодние каникулы"]
         print(*self.holidays)
@@ -283,39 +357,17 @@ class Calendar:
             self.weekends.add(date[1])
         #print(sorted(list(self.weekends)))
 
-
-        # cnt = set()
-        # for holiday in self.holidays:
-        #     cnt.add(holiday.name)
-        # cnt = len(cnt)
-        # print(f"Number of distinct holidays: {cnt}")
-
-        #temp_list = []
-
-        # for i, date in enumerate(self.holidays):
-        #    self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
-
-        for i, base_holiday in enumerate(self.holidays):
-            for j, probe_holiday in reversed(list(enumerate(self.holidays))):
-                # print(i, j)
-
-                if j > i and base_holiday.name == probe_holiday.name:
-                    self.holidays[i].date.append(*probe_holiday.date)
-                    del self.holidays[j]
-                    # print("present")
-            # if holiday.name in [day.name for day in temp_list]:
-            #
-            #    print("Present!")
-            # else:
-            #    temp_list.append(holiday)
-            # del self.holidays[i]
-
-            # print(f"temp: {temp_list}")
-        # print(f"holidays:{self.holidays}")
-        print([date for holiday in self.holidays for date in holiday.date])
-
         self.render()
 
+
+def convert_month_name(month):
+    names = {
+        "май": "мая",
+        "июн": "июня",
+    }
+    if month in names:
+        return names[month]
+    return month
 
 if __name__ == '__main__':
     cal = Calendar(2023)
