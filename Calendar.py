@@ -44,7 +44,7 @@ class Calendar:
         self.page_size = A4
         self.width, self.height = self.page_size
         self.font = 'CalibriB'
-        self.font_size = 14
+        self.font_size = 12
         self.locale = 'Russian_Russia'
         self.pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
 
@@ -55,10 +55,13 @@ class Calendar:
         self.month_width = self.cell_size.width * 7  # (self.width - self.left_margin - self.right_margin) / 31 * 7
         self.month_height = self.cell_size.height * 9  # (self.height - self.top_margin - self.bottom_margin)
 
+        # should remove and set as cell_size.height
         self.line_spacing = self.font_size * 1.2
 
         self.c = calendar.LocaleTextCalendar(locale=self.locale)
 
+        self.working_days = []
+        self.working_hours = []
         # month, day, is_transferrable (defines if holiday is transferred when concurs with weekend),
         # name
         self.holidays = [["1-1", 0, "Новогодние каникулы"], ["1-2", 0, "Новогодние каникулы"],
@@ -75,7 +78,7 @@ class Calendar:
 
         self.weekend_transfer = [["2023-1-1", "2023-2-24"], ["2023-1-8", "2023-5-8"]]
 
-    def is_special_day(self, day) -> Color:
+    def is_special_day(self, day: datetime.date) -> Color:
         """
         Checks if a day is in holiday, weekend or shortened work day lists and returns
         corresponding color for the day type.
@@ -96,9 +99,10 @@ class Calendar:
             return red
         if day in self.shortened_work_day:
             return green
+        self.working_days.append(day)
         return black
 
-    def render_day(self, x: int, y: int, day: tuple, month: int):
+    def render_day(self, x: int, y: int, day: datetime.date, month: int):
         # (2023, 12, 30, 4)
 
         # year_day, month_day, day, week_day = day
@@ -134,11 +138,11 @@ class Calendar:
 
         self.render_week(x, y, month)
 
-    def render_year(self):
-        y = self.top_margin
+    def render_year(self, y):
+        self.pdf.setFont(self.font, self.font_size + 2)
         self.pdf.drawCentredString(self.width / 2, y, f"Производственный календарь на {self.year} год")
-        y += self.line_spacing * 2
-        self.font_size = self.font_size - 2
+        #y += self.line_spacing * 2
+        y += self.cell_size.height * 2
         self.pdf.setFont(self.font, self.font_size)
 
         # there are 31 cell and 7 in every month in case 4 months per line plus 3 empty cells as border
@@ -159,39 +163,10 @@ class Calendar:
             # self.pdf.drawString(self.left_margin + month_width * (i // 3), y + month_height * (i % 3), calendar.month_name[i + 1])
         return y + self.month_height * 3
 
-    def render(self):
-        """
-        Prepares fonts, styles etc. required for rendering final image.
-        :return:
-        """
-        locale.setlocale(locale.LC_ALL, self.locale)
-
-        # print(self.c.formatmonth(2023, 1))
-
-        output = self.year
-        # pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
-        # width, height = A4
-
-        # width_mm = int(width/72*25.4)
-        # print(width_mm)
-        print(f"Page size: {self.width / mm, self.height / mm}")
-        fonts = ("DejaVuSans", "Calibri", "CalibriB", "CalibriI", "CalibriL", "CalibriLI", "CalibriZ")
-        for font in fonts:
-            pdfmetrics.registerFont(TTFont(font, font + ".ttf"))
-
-        # self.pdf.setFont('DejaVuSans', self.font_size)
-        self.pdf.setFont(self.font, self.font_size)
-
-        # horizontal, vertical, text
-        y = self.render_year()
-
-
-
+    def render_holidays(self, y):
         print("-----Holidays-----")
-        self.font_size = self.font_size - 3
         self.font = "Calibri"
-        self.pdf.setFont(self.font, self.font_size)
-
+        self.pdf.setFont(self.font, self.font_size - 3)
 
         for i, holiday in enumerate(self.holidays):
             self.pdf.setFillColor(darkred)
@@ -230,18 +205,174 @@ class Calendar:
                 holiday.name
             )
 
-            #self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
-            #self.pdf.drawString(
+            # self.pdf.drawString(self.left_margin, y, "7 янв		Пт	Рождество Христово")
+            # self.pdf.drawString(
             #    self.left_margin + self.cell_size.width * (i // 3),
             #    y + self.cell_size.height * (i % 3),
             #    str(holiday.date)
-            #)
-            #self.pdf.drawString(self.left_margin + 100, y, "Пт")
-            #self.pdf.drawString(self.left_margin + 200, y, "Рождество Христово")
+            # )
+            # self.pdf.drawString(self.left_margin + 100, y, "Пт")
+            # self.pdf.drawString(self.left_margin + 200, y, "Рождество Христово")
 
         y += self.cell_size.height * 4
 
-        self.pdf.drawString(self.left_margin, y, "Календарь")
+        self.font = "CalibriB"
+        self.pdf.setFont(self.font, self.font_size)
+        print(self.font_size)
+
+        self.pdf.setFillColor(green)
+        self.pdf.drawCentredString(self.left_margin + self.cell_size.width * 0.5, y, "22")
+
+        self.pdf.setFillColor(black)
+        self.font = "Calibri"
+        self.pdf.setFont(self.font, self.font_size - 3)
+
+        self.pdf.drawString(
+            self.left_margin + self.cell_size.width,
+            y,
+            " - Предпраздничные дни, в которые продолжительность работы сокращается на один час"
+        )
+        y += self.cell_size.height * 2
+        return y
+
+    def render(self):
+        """
+        Prepares fonts, styles etc. required for rendering final image.
+        :return:
+        """
+        locale.setlocale(locale.LC_ALL, self.locale)
+
+        # print(self.c.formatmonth(2023, 1))
+
+        output = self.year
+        # pdf = canvas.Canvas('myfile.pdf', pagesize=self.page_size, bottomup=False)
+        # width, height = A4
+
+        # width_mm = int(width/72*25.4)
+        # print(width_mm)
+        print(f"Page size: {self.width / mm, self.height / mm}")
+        fonts = ("DejaVuSans", "Calibri", "CalibriB", "CalibriI", "CalibriL", "CalibriLI", "CalibriZ")
+        for font in fonts:
+            pdfmetrics.registerFont(TTFont(font, font + ".ttf"))
+
+        # self.pdf.setFont('DejaVuSans', self.font_size)
+        self.pdf.setFont(self.font, self.font_size)
+
+        y = self.top_margin
+        # horizontal, vertical, text
+        y = self.render_year(y)
+
+        y = self.render_holidays(y)
+
+        print("-----Нормы времени-----")
+        self.font = "CalibriB"
+        self.pdf.setFont(self.font, self.font_size - 1)
+
+        self.pdf.drawCentredString(self.width / 2, y, "Количественная раскладка на 2022 год")
+
+        #self.pdf.setStrokeColorRGB(0.2, 0.5, 0.3)
+        self.pdf.line(self.left_margin, y + self.cell_size.height * 0.2, self.width - self.right_margin, y + self.cell_size.height * 0.2)
+
+        x = self.left_margin
+        y += self.cell_size.height
+        self.pdf.drawCentredString(x + self.cell_size.width * 1.5, y + self.cell_size.height * 0.5, "Период")
+        self.pdf.drawCentredString(x + self.cell_size.width * 3 + (self.cell_size.width * 16 / 2), y, "Дней")
+        self.pdf.drawCentredString(x + self.cell_size.width * 19 + (self.cell_size.width * 12 / 2), y,
+                                   "Рабочих часов")
+        y += self.cell_size.height
+
+        self.pdf.drawCentredString(x + self.cell_size.width * 3 + (self.cell_size.width * 4 / 2), y,
+                                   "календарных")
+        self.pdf.drawCentredString(x + self.cell_size.width * 7 + (self.cell_size.width * 4 / 2), y,
+                                   "рабочих")
+        self.pdf.setFillColor(red)
+        self.pdf.drawCentredString(x + self.cell_size.width * 11 + (self.cell_size.width * 7 / 2), y,
+                                   "выходных и праздничных")
+        self.pdf.setFillColor(green)
+        self.pdf.setFontSize(self.font_size - 3)
+        self.pdf.drawCentredString(x + self.cell_size.width * 18 + (self.cell_size.width / 2), y,
+                                   "сокр")
+        self.pdf.setFontSize(self.font_size - 1)
+        self.pdf.setFillColor(black)
+        self.pdf.drawCentredString(x + self.cell_size.width * 19 + (self.cell_size.width * 4 / 2), y,
+                                   "40 - час.неделя")
+        self.pdf.drawCentredString(x + self.cell_size.width * 23 + (self.cell_size.width * 4 / 2), y,
+                                   "36 - час.неделя")
+        self.pdf.drawCentredString(x + self.cell_size.width * 27 + (self.cell_size.width * 4 / 2), y,
+                                   "24 - час.неделя")
+        #print(self.pdf._fontsize)
+        y += self.cell_size.height
+
+        table_width = [3, 4, 4, 7, 1, 4, 4, 4]
+        print("weekends:")
+        print(sorted(list(self.weekends)))
+        print("work days:")
+        print(sorted(list(self.working_days)))
+        print("short days:")
+        print(sorted(list(self.shortened_work_day)))
+
+        days = []
+        work_days = []
+        short_days = []
+        holidays = []
+        work_hours = []
+        work_hours36 = []
+        work_hours24 = []
+
+        for i in range(12):
+            month = i + 1
+            self.pdf.drawCentredString(x + self.cell_size.width * 3 + (self.cell_size.width * 4 / 2), y,
+                                       "календарных")
+            days.append(calendar.monthrange(self.year, month)[1])
+            work_days.append(
+                len([day for day in self.working_days if day.month == month]) +
+                len([day for day in self.shortened_work_day if day.month == month])
+            )
+            holidays.append(
+                len([day for day in self.weekends if day.month == month]) +
+                len([date for holiday in self.holidays for date in holiday.date if date.month == month])
+            )
+            short_days.append(len([date for date in self.shortened_work_day if date.month == month]))
+
+            work_hours.append(work_days[i] * 8 - short_days[i])
+            work_hours36.append(float(work_days[i] * 7.2 - short_days[i]))
+            work_hours24.append(work_days[i] * 4.8 - short_days[i])
+
+            print(
+                month,
+                days[i],
+                work_days[i],
+                holidays[i],
+                short_days[i],
+                work_hours[i],
+                f"{work_hours36[i]:.1f}",
+                f"{work_hours24[i]:.1f}",
+            )
+            if not month % 3:
+                print("Quarter")
+                print(
+                    sum(days[i-2:month]),
+                    sum(work_days[i-2:month]),
+                    sum(holidays[i-2:month]),
+                    sum(short_days[i-2:month]),
+                    sum(work_hours[i-2:month]),
+                    f"{sum(work_hours36[i - 2:month]):.1f}",
+                    f"{sum(work_hours24[i - 2:month]):.1f}",
+                )
+            if not month % 12:
+                print("annual")
+                print(
+                    sum(days[0:month]),
+                    sum(work_days[0:month]),
+                    sum(holidays[0:month]),
+                    sum(short_days[0:month]),
+                    sum(work_hours[0:month]),
+                    f"{sum(work_hours36[0:month]):.1f}",
+                    f"{sum(work_hours24[0:month]):.1f}",
+                )
+
+        #
+
         # self.pdf.setFillColor(green)
         # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
 
@@ -277,13 +408,16 @@ class Calendar:
         for date in self.holidays:
             date[0] = datetime.datetime.strptime(str(self.year)+date[0], "%Y%m-%d").date()
 
-        # perform weekend transfer
+        # convert weekend transfer to datetime
         for date in self.weekend_transfer:
             date[0], date[1] = (
                 datetime.datetime.strptime(date[0], "%Y-%m-%d").date(),
                 datetime.datetime.strptime(date[1], "%Y-%m-%d").date()
             )
         #print(self.weekend_transfer)
+
+
+
 
         # convert holidays data to Holiday object
         for i, date in enumerate(self.holidays):
@@ -296,9 +430,6 @@ class Calendar:
         # print(f"Number of distinct holidays: {cnt}")
 
         #temp_list = []
-
-        # for i, date in enumerate(self.holidays):
-        #    self.holidays[i] = Holiday(date=date[0], is_transferable=date[1], name=date[2])
 
         for i, base_holiday in enumerate(self.holidays):
             for j, probe_holiday in reversed(list(enumerate(self.holidays))):
@@ -332,6 +463,12 @@ class Calendar:
             if date.weekday() in (5, 6):
                 self.weekends.add(date)
 
+        # exchange holidays according to weekend transfer list
+        for date in self.weekend_transfer:
+            self.weekends.discard(date[0])
+            self.weekends.add(date[1])
+
+        for date in [start_date + datetime.timedelta(days=x) for x in range((end_date - start_date).days)]:
             # Populate weekend transfers and shortened work days
             # warning!: shortened days are calculated only for transferable holidays.
             # print(date, date.weekday())
@@ -345,16 +482,17 @@ class Calendar:
                     while transfer_day.weekday() in (5, 6):
                         transfer_day += datetime.timedelta(days=1)
                     self.weekends.add(transfer_day)
+                    self.weekends.discard(date)
                     print(f"A suitable date has been found: {transfer_day}")
                 prev_date = date - datetime.timedelta(days=1)
                 if prev_date not in self.weekends:
                     print(f"Found a shortened work day: {prev_date}")
                     self.shortened_work_day.add(prev_date)
+            elif date in [date for holiday in self.holidays for date in holiday.date]:
+                self.weekends.discard(date)
 
-        # exchange holidays according to weekend transfer list
-        for date in self.weekend_transfer:
-            self.weekends.discard(date[0])
-            self.weekends.add(date[1])
+
+
         #print(sorted(list(self.weekends)))
 
         self.render()
