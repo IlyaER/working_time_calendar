@@ -3,6 +3,7 @@ import io
 import locale
 import datetime
 from itertools import count
+from unicodedata import decimal
 
 from reportlab.lib.colors import (Color, HexColor, black, coral, crimson,
                                   darkred, green, grey, red, lightgrey)
@@ -50,7 +51,7 @@ class Calendar:
 
         self.cell_size = Cell(
             (self.width - self.left_margin - self.right_margin) / 31,
-            (self.width - self.left_margin - self.right_margin) / 31 * 0.9
+            (self.width - self.left_margin - self.right_margin) / 31 * 0.8
         )
         self.month_width = self.cell_size.width * 7  # (self.width - self.left_margin - self.right_margin) / 31 * 7
         self.month_height = self.cell_size.height * 9  # (self.height - self.top_margin - self.bottom_margin)
@@ -303,26 +304,59 @@ class Calendar:
         #print(self.pdf._fontsize)
         y += self.cell_size.height
 
-        table_width = [3, 4, 4, 7, 1, 4, 4, 4]
-        print("weekends:")
-        print(sorted(list(self.weekends)))
-        print("work days:")
-        print(sorted(list(self.working_days)))
-        print("short days:")
-        print(sorted(list(self.shortened_work_day)))
 
+        #print("weekends:")
+        #print(sorted(list(self.weekends)))
+        #print("work days:")
+        #print(sorted(list(self.working_days)))
+        #print("short days:")
+        #print(sorted(list(self.shortened_work_day)))
+
+
+        month = 0
         days = []
         work_days = []
-        short_days = []
         holidays = []
+        short_days = []
         work_hours = []
         work_hours36 = []
         work_hours24 = []
 
+        months = [datetime.date(2001, i + 1, 1).strftime("%B") for i in range(12)]
+        #print(month_name_1[1])
+        #print(datetime.date(2001, 1, 1).strftime("%B"))
+
+        table_width = [
+            (3, months, black),
+            (4, days, black),
+            (4, work_days, black),
+            (7, holidays, red),
+            (1, short_days, green),
+            (4, work_hours, black),
+            (4, work_hours36, black),
+            (4, work_hours24, black),
+        ]
+
+
+        def print_cell(pos_x, pos_y, text, parameter, color=black):
+            print(text, parameter)
+            if type(parameter) == list:
+                parameter = parameter[0]
+            self.pdf.setFillColor(color)
+            if type(text[parameter]) is float:
+                string = f"{text[parameter]:.1f}"
+                self.pdf.drawCentredString(pos_x, pos_y, string)
+                return
+            self.pdf.drawCentredString(
+                pos_x,
+                pos_y,
+                str(text[parameter])
+            )
+
+
         for i in range(12):
             month = i + 1
-            self.pdf.drawCentredString(x + self.cell_size.width * 3 + (self.cell_size.width * 4 / 2), y,
-                                       "календарных")
+
             days.append(calendar.monthrange(self.year, month)[1])
             work_days.append(
                 len([day for day in self.working_days if day.month == month]) +
@@ -335,20 +369,34 @@ class Calendar:
             short_days.append(len([date for date in self.shortened_work_day if date.month == month]))
 
             work_hours.append(work_days[i] * 8 - short_days[i])
-            work_hours36.append(float(work_days[i] * 7.2 - short_days[i]))
+            work_hours36.append(work_days[i] * 7.2 - short_days[i])
             work_hours24.append(work_days[i] * 4.8 - short_days[i])
 
-            print(
-                month,
-                days[i],
-                work_days[i],
-                holidays[i],
-                short_days[i],
-                work_hours[i],
-                f"{work_hours36[i]:.1f}",
-                f"{work_hours24[i]:.1f}",
-            )
+            pos_x = x
+
+            for j in range(len(table_width)):
+                pos_x += self.cell_size.width * table_width[j][0] / 2
+                print_cell(pos_x, y, table_width[j][1], i, table_width[j][2])
+                pos_x += self.cell_size.width * table_width[j][0] / 2
+
+            #print(
+            #    month,
+            #    days[i],
+            #    work_days[i],
+            #    holidays[i],
+            #    short_days[i],
+            #    work_hours[i],
+            #    work_hours36[i],
+            #    work_hours24[i],
+            #)
+            y += self.cell_size.height
+
             if not month % 3:
+                pos_x = x
+                for j in range(len(table_width)):
+                    pos_x += self.cell_size.width * table_width[j][0] / 2
+                    print_cell(pos_x, y, table_width[j][1], [i-2, month], table_width[j][2])
+                    pos_x += self.cell_size.width * table_width[j][0] / 2
                 print("Quarter")
                 print(
                     sum(days[i-2:month]),
@@ -359,7 +407,9 @@ class Calendar:
                     f"{sum(work_hours36[i - 2:month]):.1f}",
                     f"{sum(work_hours24[i - 2:month]):.1f}",
                 )
+                y += self.cell_size.height
             if not month % 12:
+                pos_x = x
                 print("annual")
                 print(
                     sum(days[0:month]),
@@ -370,6 +420,8 @@ class Calendar:
                     f"{sum(work_hours36[0:month]):.1f}",
                     f"{sum(work_hours24[0:month]):.1f}",
                 )
+                y += self.cell_size.height
+
 
         #
 
