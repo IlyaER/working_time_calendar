@@ -393,9 +393,19 @@ class Calendar:
 
             if not month % 3:
                 pos_x = x
+                quarter_table = [
+                    f"{to_roman_number(i // 3 + 1)} Квартал",
+                    sum(days[i-2:month]),
+                    sum(work_days[i-2:month]),
+                    sum(holidays[i-2:month]),
+                    sum(short_days[i-2:month]),
+                    sum(work_hours[i-2:month]),
+                    f"{sum(work_hours36[i - 2:month]):.1f}",
+                    f"{sum(work_hours24[i - 2:month]):.1f}",
+                ]
                 for j in range(len(table_width)):
                     pos_x += self.cell_size.width * table_width[j][0] / 2
-                    print_cell(pos_x, y, table_width[j][1], [i-2, month], table_width[j][2])
+                    print_cell(pos_x, y, [quarter_table[j]], 0, table_width[j][2])
                     pos_x += self.cell_size.width * table_width[j][0] / 2
                 print("Quarter")
                 print(
@@ -404,12 +414,30 @@ class Calendar:
                     sum(holidays[i-2:month]),
                     sum(short_days[i-2:month]),
                     sum(work_hours[i-2:month]),
-                    f"{sum(work_hours36[i - 2:month]):.1f}",
-                    f"{sum(work_hours24[i - 2:month]):.1f}",
+                    f"{sum(work_hours36[i-2:month]):.1f}",
+                    f"{sum(work_hours24[i-2:month]):.1f}",
                 )
                 y += self.cell_size.height
             if not month % 12:
                 pos_x = x
+
+                annual_table = [
+                    "Итого",
+                    sum(days[0:month]),
+                    sum(work_days[0:month]),
+                    sum(holidays[0:month]),
+                    sum(short_days[0:month]),
+                    sum(work_hours[0:month]),
+                    f"{sum(work_hours36[0:month]):.1f}",
+                    f"{sum(work_hours24[0:month]):.1f}",
+                ]
+
+                for j in range(len(table_width)):
+                    pos_x += self.cell_size.width * table_width[j][0] / 2
+                    print_cell(pos_x, y, [annual_table[j]], 0, table_width[j][2])
+                    pos_x += self.cell_size.width * table_width[j][0] / 2
+
+
                 print("annual")
                 print(
                     sum(days[0:month]),
@@ -422,8 +450,6 @@ class Calendar:
                 )
                 y += self.cell_size.height
 
-
-        #
 
         # self.pdf.setFillColor(green)
         # self.pdf.drawString(0.5 * cm, 1 * cm, "Календарь")
@@ -548,6 +574,24 @@ class Calendar:
         #print(sorted(list(self.weekends)))
 
         self.render()
+
+
+def to_roman_number(number):
+    num = [1, 4, 5, 9, 10, 40, 50, 90,
+           100, 400, 500, 900, 1000]
+    sym = ["I", "IV", "V", "IX", "X", "XL",
+           "L", "XC", "C", "CD", "D", "CM", "M"]
+    i = 12
+    out = ""
+    while number:
+        div = number // num[i]
+        number %= num[i]
+
+        while div:
+            out += sym[i]
+            div -= 1
+        i -= 1
+    return out
 
 
 def convert_month_name(month):
