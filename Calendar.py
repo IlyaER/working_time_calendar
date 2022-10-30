@@ -6,7 +6,7 @@ from itertools import count
 from unicodedata import decimal
 
 from reportlab.lib.colors import (Color, HexColor, black, coral, crimson,
-                                  darkred, green, grey, red, lightgrey)
+                                  darkred, green, grey, red, lightgrey, darkblue)
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.units import cm, inch, mm
 from reportlab.pdfbase import pdfmetrics
@@ -78,6 +78,33 @@ class Calendar:
         self.shortened_work_day = set()
 
         self.weekend_transfer = [["2023-1-1", "2023-2-24"], ["2023-1-8", "2023-5-8"]]
+
+
+    def draw_horizontal_line(self, y):
+        self.pdf.line(self.left_margin, y + self.cell_size.height * 0.2, self.width - self.right_margin,
+                      y + self.cell_size.height * 0.2)
+
+    def draw_vertical_line(self, x, y, height):
+        self.pdf.line(
+            x, y,
+            x, y + height * self.cell_size.height
+        )
+
+    def print_cell(self, pos_x, pos_y, text, parameter, color=black):
+        print(text, parameter)
+        if type(parameter) == list:
+            parameter = parameter[0]
+        self.pdf.setFillColor(color)
+        if type(text[parameter]) is float:
+            string = f"{text[parameter]:.1f}"
+            self.pdf.drawCentredString(pos_x, pos_y, string)
+            return
+        self.pdf.drawCentredString(
+            pos_x,
+            pos_y,
+            str(text[parameter])
+        )
+
 
     def is_special_day(self, day: datetime.date) -> Color:
         """
@@ -271,11 +298,26 @@ class Calendar:
 
         self.pdf.drawCentredString(self.width / 2, y, "Количественная раскладка на 2022 год")
 
+
+
         #self.pdf.setStrokeColorRGB(0.2, 0.5, 0.3)
         self.pdf.line(self.left_margin, y + self.cell_size.height * 0.2, self.width - self.right_margin, y + self.cell_size.height * 0.2)
 
+        vertical_borders = [0, 3, 16, 12]
+
         x = self.left_margin
+
+        pos_x = x
+        # draw vertical borders
+        for i in range(len(vertical_borders)):
+            pos_x += self.cell_size.width * vertical_borders[i]
+            self.draw_vertical_line(pos_x, y + self.cell_size.height * 0.2, 19)
+            print(pos_x)
+
+        pos_x = x
+
         y += self.cell_size.height
+
         self.pdf.drawCentredString(x + self.cell_size.width * 1.5, y + self.cell_size.height * 0.5, "Период")
         self.pdf.drawCentredString(x + self.cell_size.width * 3 + (self.cell_size.width * 16 / 2), y, "Дней")
         self.pdf.drawCentredString(x + self.cell_size.width * 19 + (self.cell_size.width * 12 / 2), y,
@@ -301,6 +343,8 @@ class Calendar:
                                    "36 - час.неделя")
         self.pdf.drawCentredString(x + self.cell_size.width * 27 + (self.cell_size.width * 4 / 2), y,
                                    "24 - час.неделя")
+
+        self.draw_horizontal_line(y)
         #print(self.pdf._fontsize)
         y += self.cell_size.height
 
@@ -338,21 +382,6 @@ class Calendar:
         ]
 
 
-        def print_cell(pos_x, pos_y, text, parameter, color=black):
-            print(text, parameter)
-            if type(parameter) == list:
-                parameter = parameter[0]
-            self.pdf.setFillColor(color)
-            if type(text[parameter]) is float:
-                string = f"{text[parameter]:.1f}"
-                self.pdf.drawCentredString(pos_x, pos_y, string)
-                return
-            self.pdf.drawCentredString(
-                pos_x,
-                pos_y,
-                str(text[parameter])
-            )
-
 
         for i in range(12):
             month = i + 1
@@ -376,7 +405,7 @@ class Calendar:
 
             for j in range(len(table_width)):
                 pos_x += self.cell_size.width * table_width[j][0] / 2
-                print_cell(pos_x, y, table_width[j][1], i, table_width[j][2])
+                self.print_cell(pos_x, y, table_width[j][1], i, table_width[j][2])
                 pos_x += self.cell_size.width * table_width[j][0] / 2
 
             #print(
@@ -389,9 +418,13 @@ class Calendar:
             #    work_hours36[i],
             #    work_hours24[i],
             #)
-            y += self.cell_size.height
+
 
             if not month % 3:
+                self.draw_horizontal_line(y)
+
+                y += self.cell_size.height
+
                 pos_x = x
                 quarter_table = [
                     f"{to_roman_number(i // 3 + 1)} Квартал",
@@ -405,20 +438,15 @@ class Calendar:
                 ]
                 for j in range(len(table_width)):
                     pos_x += self.cell_size.width * table_width[j][0] / 2
-                    print_cell(pos_x, y, [quarter_table[j]], 0, table_width[j][2])
+                    self.print_cell(pos_x, y, [quarter_table[j]], 0, darkblue)
                     pos_x += self.cell_size.width * table_width[j][0] / 2
-                print("Quarter")
-                print(
-                    sum(days[i-2:month]),
-                    sum(work_days[i-2:month]),
-                    sum(holidays[i-2:month]),
-                    sum(short_days[i-2:month]),
-                    sum(work_hours[i-2:month]),
-                    f"{sum(work_hours36[i-2:month]):.1f}",
-                    f"{sum(work_hours24[i-2:month]):.1f}",
-                )
-                y += self.cell_size.height
+
+                self.draw_horizontal_line(y)
+
             if not month % 12:
+
+                y += self.cell_size.height
+
                 pos_x = x
 
                 annual_table = [
@@ -434,21 +462,14 @@ class Calendar:
 
                 for j in range(len(table_width)):
                     pos_x += self.cell_size.width * table_width[j][0] / 2
-                    print_cell(pos_x, y, [annual_table[j]], 0, table_width[j][2])
+                    self.print_cell(pos_x, y, [annual_table[j]], 0, darkblue)
                     pos_x += self.cell_size.width * table_width[j][0] / 2
 
+                self.draw_horizontal_line(y)
 
-                print("annual")
-                print(
-                    sum(days[0:month]),
-                    sum(work_days[0:month]),
-                    sum(holidays[0:month]),
-                    sum(short_days[0:month]),
-                    sum(work_hours[0:month]),
-                    f"{sum(work_hours36[0:month]):.1f}",
-                    f"{sum(work_hours24[0:month]):.1f}",
-                )
-                y += self.cell_size.height
+
+            y += self.cell_size.height
+
 
 
         # self.pdf.setFillColor(green)
