@@ -100,6 +100,12 @@ class Calendar:
         ]
 
     def draw_horizontal_line(self, y: float) -> None:
+        """
+        Draws horizontal line for full width
+        (excluding margins) on y coordinate.
+        :param y:
+        :return:
+        """
         self.pdf.line(
             self.left_margin,
             y + self.cell_size.height * 0.2,
@@ -108,6 +114,13 @@ class Calendar:
         )
 
     def draw_vertical_line(self, x: float, y: float, height: int) -> None:
+        """
+        Draws vertical line for specified height in x, y coordinates.
+        :param x:
+        :param y:
+        :param height:
+        :return:
+        """
         self.pdf.line(
             x, y,
             x, y + height * self.cell_size.height
@@ -121,6 +134,16 @@ class Calendar:
             parameter: typing.Union[int, list],
             color: str = black
     ) -> None:
+        """
+        Determines a color, performs character formatting
+        and renders a cell with certain data.
+        :param pos_x:
+        :param pos_y:
+        :param text:
+        :param parameter:
+        :param color:
+        :return:
+        """
         if type(parameter) == list:
             parameter = parameter[0]
         self.pdf.setFillColor(color)
@@ -140,11 +163,9 @@ class Calendar:
         or shortened work day lists and returns
         corresponding color for the day type.
         Returns black color if not.
-
         :param day:
         :return:
         """
-
         # search in list of lists
         if day in [
             date for holiday in self.holidays for date in holiday.date
@@ -164,6 +185,15 @@ class Calendar:
             day: datetime.date,
             month: int
     ) -> None:
+        """
+        Renders every day checking the parameters such as color or
+        affilation with a certain month.
+        :param x:
+        :param y:
+        :param day:
+        :param month:
+        :return:
+        """
         if day.month != month:
             self.pdf.setFillColor(lightgrey)
         else:
@@ -173,6 +203,14 @@ class Calendar:
         self.pdf.setFillColor(black)
 
     def render_week(self, x: float, y: float, month: int) -> None:
+        """
+        Renders every week. Calculates a location for every day in a month
+        and passes control further to "day" part.
+        :param x:
+        :param y:
+        :param month:
+        :return:
+        """
         for i in range(0, 7):
             if i > 4:
                 self.pdf.setFillColor(red)
@@ -196,6 +234,13 @@ class Calendar:
                 y += self.cell_size.height
 
     def render_month(self, x: float, y: float, month: int) -> None:
+        """
+        Renders every month of a year. Gives control to "week" part.
+        :param x:
+        :param y:
+        :param month:
+        :return:
+        """
         # print(f"Month start points: {x / mm, y / mm}")
         # print(self.cell_size.width / mm, month)
         self.pdf.drawCentredString(
@@ -208,6 +253,13 @@ class Calendar:
         self.render_week(x, y, month)
 
     def render_year(self, y: float) -> float:
+        """
+        Renders year part of calendar. Calculates a location
+        for every month and passes coordianates to "month" part.
+        render.
+        :param y:
+        :return:
+        """
         self.pdf.setFont(self.font, self.font_size + 2)
         self.pdf.drawCentredString(
             self.width / 2,
@@ -234,6 +286,12 @@ class Calendar:
         return y + self.month_height * 3
 
     def render_holidays(self, y: float) -> float:
+        """
+        Renders holidays part. A list of date and description for
+        every holiday that is considered a public holiday.
+        :param y:
+        :return:
+        """
         # print("-----Holidays-----")
         self.font = "Calibri"
         self.pdf.setFont(self.font, self.font_size - 3)
@@ -303,6 +361,12 @@ class Calendar:
         return y
 
     def render_schedule(self, y: float) -> float:
+        """
+        Renders production schedule part.
+        Calculations are performed inside.
+        :param y:
+        :return:
+        """
         # print("-----Нормы времени-----")
         self.font = "CalibriB"
         self.pdf.setFont(self.font, self.font_size - 1)
@@ -505,6 +569,7 @@ class Calendar:
     def render(self) -> None:
         """
         Prepares fonts, styles etc. required for rendering final image.
+        Calls other necessary functions.
         :return:
         """
         locale.setlocale(locale.LC_ALL, self.locale)
