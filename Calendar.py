@@ -1,6 +1,7 @@
 import calendar
 import datetime
 import locale
+import sys
 import typing
 
 from reportlab.lib.colors import (Color, HexColor, black, darkblue, darkred,
@@ -10,6 +11,18 @@ from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+
+
+ARABIC_TO_ROMAN = [(1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+                   (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+                   (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I")]
+
+USAGE = (f"Usage: {sys.argv[0]} 2008\n"
+         "Creates PDF calendar for the mentioned year\n"
+         "in the same folder.\n"
+         "If no year is specified, then current year is chosen\n"
+         "or next if it is past October.\n"
+         "[--help] - displays this message")
 
 
 class Cell:
@@ -56,7 +69,7 @@ class Calendar:
         self.font_size = font_size
         self.locale = locale
         self.pdf = canvas.Canvas(
-            'myfile.pdf',
+            f"Calendar_{self.year}.pdf",
             pagesize=self.page_size,
             bottomup=False
         )
@@ -522,7 +535,7 @@ class Calendar:
 
                 pos_x = x
                 quarter_table = [
-                    f"{to_roman_number(i // 3 + 1)} Квартал",
+                    f"{to_roman_numeral(i // 3 + 1)} Квартал",
                     sum(days[i - 2:month]),
                     sum(work_days[i - 2:month]),
                     sum(holidays[i - 2:month]),
@@ -598,7 +611,14 @@ class Calendar:
         y = self.render_schedule(y)
 
         self.pdf.showPage()
-        self.pdf.save()
+        try:
+            self.pdf.save()
+        except PermissionError as exception:
+            print("------EГГOГ------")
+            print(exception)
+            print(f"Check if the file is not opened and you have \n"
+                  f"enough permissions writing to this folder.")
+
 
     def setup(self) -> None:
         """
@@ -693,22 +713,13 @@ class Calendar:
         self.render()
 
 
-def to_roman_number(number: int) -> str:
-    num = [1, 4, 5, 9, 10, 40, 50, 90,
-           100, 400, 500, 900, 1000]
-    sym = ["I", "IV", "V", "IX", "X", "XL",
-           "L", "XC", "C", "CD", "D", "CM", "M"]
-    i = 12
-    out = ""
-    while number:
-        div = number // num[i]
-        number %= num[i]
-
-        while div:
-            out += sym[i]
-            div -= 1
-        i -= 1
-    return out
+def to_roman_numeral(number: int) -> str:
+    """Convert arabic number to a roman numeral string"""
+    result = list()
+    for arabic, roman in ARABIC_TO_ROMAN:
+        count, number = divmod(number, arabic)
+        result.append(roman * count)
+    return "".join(result)
 
 
 def convert_month_name(month: str) -> str:
@@ -721,6 +732,22 @@ def convert_month_name(month: str) -> str:
     return month
 
 
-if __name__ == '__main__':
-    cal = Calendar(2023, page_size=A4, font_size=12)
+def main() -> None:
+    args = sys.argv[1:]
+    if not args:
+        year = datetime.date.today().year
+        if datetime.date.today().month > 10:
+            year += 1
+
+    elif args[0] == "--help":
+        raise SystemExit(USAGE)
+    elif args[0].isdigit():
+        year = int(args[0])
+    else:
+        raise SystemExit(USAGE)
+    cal = Calendar(year, page_size=A4, font_size=12)
     cal.setup()
+
+
+if __name__ == '__main__':
+    main()
