@@ -1,4 +1,4 @@
-Производственный календарь на любой год.
+Производственный календарь на любой год в PDF.
 
 Долгое время пользовался excel версией генератора календаря,
 но там необходимо было проводить некоторые операции вручную, либо
@@ -10,18 +10,19 @@
 Особенности:
 - вертикальное расположение (февраль располагается под январём, а не справа)
 - автоподсчёт всех праздников и сокращённых дней
-- возможность выбора шрифта, кегля, размера страницы
+- возможность выбора шрифта, кегля, размера страницы (TBD)
 
-- Только версия для России (праздники)
+- версия для России (праздники)
 - нет визуального интерфейса
 
 
-This is a simple production schedule calendar printed in PDF.
+
+This is a simple working time calendar printed in PDF.
 
 Features:
 - vertical alignment (Feb is under Jan, not to the right as usual)
 - all holidays and shortened workdays are calculated
 
 Limitations:
-- Currently only Russian version
-- No GUI
+- currently only Russian version (public holidays)
+- no GUI
