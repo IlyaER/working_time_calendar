@@ -579,6 +579,13 @@ class Calendar:
 
         return y
 
+    def render_sign(self, y):
+        string = "made by Ilya Rogovoy"
+        self.pdf.setFillColor(HexColor(0xF0F0F0))
+        self.pdf.drawString(self.left_margin, y, string)
+        self.pdf.setFillColor(black)
+
+
     def render(self) -> None:
         """
         Prepares fonts, styles etc. required for rendering final image.
@@ -609,6 +616,8 @@ class Calendar:
         y = self.render_holidays(y)
 
         y = self.render_schedule(y)
+
+        y = self.render_sign(y)
 
         self.pdf.showPage()
         try:
